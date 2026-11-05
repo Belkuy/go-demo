@@ -145,6 +145,22 @@
 <span class="k">curl</span> http://localhost:8080   <span class="s"># hello from go-demo, version: ...</span>
   </div>
 
+  <!-- 在线 API 演示：浏览器 fetch 直接调用 Render 上的 Go 后端 -->
+  <h3 style="margin: 32px 0 8px;">在线调 API（真实后端）</h3>
+  <p style="color: var(--text-dim); font-size: 14px; line-height: 1.8;">
+    后端运行在 Render 免费层（新加坡区域），本页面通过 CORS 白名单跨域调用。
+    免费层 15 分钟无流量会休眠，首次点击如等待较久属冷启动，不是故障。
+  </p>
+  <div class="codebox" style="line-height: 1.7;">
+    <span style="color: var(--text-dim);">后端地址：</span><code style="color: var(--accent2);">https://go-demo-latest.onrender.com</code>
+  </div>
+  <button id="apiBtn" onclick="callApi()" style="
+    padding: 12px 28px; border-radius: 12px; border: 1px solid var(--glass-border);
+    background: linear-gradient(135deg, rgba(108,92,231,.35), rgba(0,210,255,.25));
+    color: var(--text); font-size: 15px; cursor: pointer; margin: 8px 0 16px;
+  ">调用 /api/hello</button>
+  <div id="apiResult" class="codebox" style="min-height: 24px; white-space: pre-wrap;">点击上方按钮，响应会显示在这里</div>
+
   <footer>
     <a href="https://github.com/Belkuy/go-demo">GitHub 仓库</a> ·
     <a href="https://github.com/Belkuy/go-demo/actions">Actions 运行记录</a> ·
@@ -152,5 +168,25 @@
     <br><br>由 GitHub Actions 自动部署 🧭
   </footer>
 </div>
+
+<script>
+  // 调用 Render 后端的 /api/hello 接口，把原始响应展示出来
+  // 后端 CORS 白名单已放行 https://belkuy.github.io，浏览器允许本次跨域请求
+  const API_BASE = "https://go-demo-latest.onrender.com";
+
+  async function callApi() {
+    const box = document.getElementById("apiResult");
+    box.textContent = "请求中…（冷启动可能需要 30-60 秒）";
+    const start = performance.now();
+    try {
+      const res = await fetch(API_BASE + "/api/hello");
+      const text = await res.text();
+      const ms = Math.round(performance.now() - start);
+      box.textContent = "HTTP " + res.status + " · " + ms + " ms\n" + text;
+    } catch (err) {
+      box.textContent = "请求失败：" + err.message;
+    }
+  }
+</script>
 </body>
 </html>
