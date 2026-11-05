@@ -1,40 +1,61 @@
+# =====================================================================
+# GitHub Actions: 把仓库里的静态文件发布到 GitHub Pages
+#
+# 访问地址：https://belkuy.github.io/go-demo/
+# 前置条件：仓库 Settings → Pages → Source 必须选 "GitHub Actions"
+# =====================================================================
 name: Deploy to GitHub Pages
 
+# ---------- 触发器 ----------
 on:
   push:
     branches: [main]
-    paths:
+    paths:                      # 只在页面相关文件变化时触发，避免每次改 Go 代码都白跑一次部署
       - "index.html"
       - ".github/workflows/pages.yml"
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:            # 手动触发，便于修改 Pages 配置后重新发布
 
-# Pages 部署需要的三项权限
+# ---------- 权限 ----------
+# 这几项是 deploy-pages 的硬性要求，缺一个都会 403
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: read                # 读仓库代码
+  pages: write                  # 写 Pages 站点
+  id-token: write               # 用于 OIDC 校验部署来源，防止伪造发布
 
-# 同一时间只保留一次部署，新推送取消旧部署
+# ---------- 并发控制 ----------
+# 同一时刻只允许一个 Pages 部署任务；新推送进来时取消正在跑的旧任务
 concurrency:
   group: pages
   cancel-in-progress: true
 
+# ---------- 任务 ----------
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # environment 会关联到仓库的 github-pages 环境，
+    # 部署成功后 url 字段就是线上地址，在 Actions 页面可直接点击
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
+      # 步骤 1：拉取仓库代码
       - uses: actions/checkout@v4
 
+      # 步骤 2：读取仓库 Pages 配置，为后续上传/部署准备好运行环境
       - uses: actions/configure-pages@v5
 
+      # 步骤 3：把站点文件打包成 artifact
+      # path: "." 表示整个仓库根目录都作为站点内容，
+      # 所以 index.html 会作为首页，README.md 也会被一起发布（无害）
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "." # 整个仓库根目录作为站点内容
+          path: "."
 
+      # 步骤 4：把 artifact 部署到 GitHub Pages 的 CDN
+      # id: deployment 让 environment.url 能引用到输出的 page_url
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

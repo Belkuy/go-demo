@@ -1,29 +1,53 @@
+# =====================================================================
+# GitHub Actions: 构建 Go 镜像并推送到 GitHub Container Registry (ghcr.io)
+#
+# 触发时机：push 到 main 分支，或在 Actions 页面手动点 Run workflow
+# 产物：ghcr.io/belkuy/go-demo:<git-sha>  与  ghcr.io/belkuy/go-demo:latest
+# =====================================================================
 name: Build & Push to GHCR
 
+# ---------- 触发器 ----------
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # 允许手动触发
+    branches: [main]      # 仅 main 分支的 push 触发；其他分支不会跑
+  workflow_dispatch:      # 保留手动触发按钮，便于调试时不提交代码也能跑
 
+# ---------- 全局环境变量 ----------
 env:
-  IMAGE_NAME: ${{ github.repository }} # 推送前转为小写，见 lowercase 步骤
+  # github.repository 会自动展开为 "Belkuy/go-demo"（注意含大写）
+  # 镜像名不允许大写，所以这里只存原始值，下一步再转小写
+  IMAGE_NAME: ${{ github.repository }}
 
+# ---------- 权限 ----------
+# GITHUB_TOKEN 的权限默认最小化，推镜像必须显式申请 packages: write
 permissions:
-  contents: read
-  packages: write # 推送镜像必须显式声明
+  contents: read          # 只读代码
+  packages: write         # 写 packages（推送镜像到 ghcr 必需）
 
+# ---------- 任务 ----------
 jobs:
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # 使用 GitHub 托管的 Ubuntu runner（免费额度 2000 分钟/月）
+
     steps:
+      # 步骤 1：把仓库代码下载到 runner 的工作目录，后续步骤才能读到 Dockerfile
       - uses: actions/checkout@v4
 
+      # 步骤 2：把镜像名转成小写
+      # ${IMAGE_NAME,,} 是 bash 的小写展开语法，结果 "ghcr.io/belkuy/go-demo"
+      # 写入 $GITHUB_ENV 后，后续所有步骤都能用 ${{ env.IMAGE }} 读取
+      # 不加这一步会报错：repository name must be lowercase
       - name: Lowercase image name
         run: echo "IMAGE=ghcr.io/${IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
+      # 步骤 3：启用 Buildx（Docker 的扩展构建器）
+      # 支持多平台构建、构建缓存导出等能力，是 build-push-action 的前置依赖
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 步骤 4：登录 GHCR
+      # username 用 github.actor（触发者账号），password 用内置 GITHUB_TOKEN
+      # 不需要在仓库 Secrets 里配置任何东西，token 由 GitHub 运行时自动注入
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -31,16 +55,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 步骤 5：构建并推送镜像
+      # id: build 让后面的步骤可以用 steps.build.outputs.* 读取输出（如 digest）
       - name: Build and push
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
-          push: true
-          # go-demo 是公开仓库，包默认跟随仓库可见性（跟随改为 public 后公开可拉）
+          context: .          # 构建上下文 = 仓库根目录
+          push: true          # 构建完成后直接推送（false 则只在本地留下镜像）
+          # 同时打两个标签：sha 用于精确定位/回滚，latest 用于快速拉取最新版
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
             ${{ env.IMAGE }}:latest
 
+      # 步骤 6：把镜像 digest 打印到日志
+      # digest（sha256:xxx）是镜像内容的唯一指纹，比 tag 更可靠，适合写进部署清单
       - name: Image digest
         run: echo "pushed ${{ env.IMAGE }} digest=${{ steps.build.outputs.digest }}"

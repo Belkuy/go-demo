@@ -88,16 +88,19 @@
 </style>
 </head>
 <body>
+<!-- 背景光斑：两个模糊的圆形色块，负责营造氛围，不接收鼠标事件 -->
 <div class="glow glow-1"></div>
 <div class="glow glow-2"></div>
 
 <div class="wrap">
+  <!-- 首屏：角标 + 渐变标题 + 一句话简介 -->
   <section class="hero">
     <span class="badge">GITHUB ACTIONS × GHCR × PAGES</span>
     <h1>go-demo</h1>
     <p>一个最小 Go 服务，演示从代码提交到镜像发布再到页面上线的完整 CI/CD 链路——全部免费，全部自动化。</p>
   </section>
 
+  <!-- 链路图：用纯 CSS 排列四个阶段，窄屏自动换行 -->
   <div class="pipeline">
     <span class="stage">📝 git push</span>
     <span class="arrow">→</span>
@@ -108,6 +111,7 @@
     <span class="stage">🌐 Pages 上线</span>
   </div>
 
+  <!-- 特性卡片区：grid 自适应列数，最小宽度 260px -->
   <div class="grid">
     <div class="card">
       <div class="icon">🤖</div>
@@ -131,6 +135,7 @@
     </div>
   </div>
 
+  <!-- 命令示例：手工着色模拟语法高亮，避免引入 Prism 之类的额外依赖 -->
   <h3 style="margin: 32px 0 8px;">本地拉取运行</h3>
   <div class="codebox">
 <span class="c"># 拉取并运行（需包可见性为 public）</span><br>
